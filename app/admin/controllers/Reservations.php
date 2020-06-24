@@ -10,6 +10,8 @@ class Reservations extends \Admin\Classes\AdminController
         'Admin\Actions\ListController',
         'Admin\Actions\CalendarController',
         'Admin\Actions\FormController',
+        'Admin\Actions\AssigneeController',
+        'Admin\Actions\LocationAwareController',
     ];
 
     public $listConfig = [
@@ -55,11 +57,14 @@ class Reservations extends \Admin\Classes\AdminController
         'configFile' => 'reservations_model',
     ];
 
-    protected $requiredPermissions = 'Admin.Reservations';
+    protected $requiredPermissions = ['Admin.Reservations', 'Admin.AssignReservations'];
 
     public function __construct()
     {
         parent::__construct();
+
+        if ($this->action === 'assigned')
+            $this->requiredPermissions = null;
 
         AdminMenu::setContext('reservations', 'sales');
     }
@@ -92,7 +97,6 @@ class Reservations extends \Admin\Classes\AdminController
             },
             'status_history.staff',
             'status_history.status',
-            'status_history.assignee',
         ]);
     }
 }

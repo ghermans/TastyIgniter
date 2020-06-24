@@ -67,7 +67,7 @@ class Categories_model extends Model
 
     public static function getDropdownOptions()
     {
-        return self::dropdown('name');
+        return self::pluck('name', 'category_id');
     }
 
     //
@@ -77,6 +77,11 @@ class Categories_model extends Model
     public function getDescriptionAttribute($value)
     {
         return strip_tags(html_entity_decode($value, ENT_QUOTES, 'UTF-8'));
+    }
+
+    public function getCountMenusAttribute($value)
+    {
+        return $this->menus()->count();
     }
 
     //

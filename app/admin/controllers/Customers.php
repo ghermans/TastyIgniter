@@ -1,9 +1,8 @@
 <?php namespace Admin\Controllers;
 
-use AdminAuth;
+use Admin\Facades\AdminAuth;
 use AdminMenu;
 use Auth;
-use Redirect;
 
 class Customers extends \Admin\Classes\AdminController
 {
@@ -57,22 +56,19 @@ class Customers extends \Admin\Classes\AdminController
         AdminMenu::setContext('customers', 'users');
     }
 
-    public function impersonate($context = null, $id = null)
+    public function onImpersonate()
     {
-        if (!AdminAuth::canAccessCustomerAccount()) {
+        if (!AdminAuth::user()->hasPermission('Admin.ImpersonateCustomers')) {
             flash()->warning(lang('admin::lang.customers.alert_login_restricted'));
 
             return $this->redirectBack();
         }
 
-        $customerModel = $this->formFindModelObject((int)$id);
-        if ($customerModel) {
-
+        $id = post('recordId');
+        if ($customer = $this->formFindModelObject((int)$id)) {
             Auth::stopImpersonate();
-
-            Auth::impersonate($customerModel);
-
-            return Redirect::to(root_url());
+            Auth::impersonate($customer);
+            flash()->success(lang('admin::lang.customers.alert_impersonate_success'));
         }
 
         return $this->redirectBack();

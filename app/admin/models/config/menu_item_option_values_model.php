@@ -14,11 +14,10 @@ $config['form']['fields'] = [
     'option_value_id' => [
         'label' => 'lang:admin::lang.menus.label_option_value',
         'type' => 'select',
-        'placeholder' => 'lang:admin::lang.text_select',
     ],
     'new_price' => [
         'label' => 'lang:admin::lang.menus.label_option_price',
-        'type' => 'money',
+        'type' => 'currency',
     ],
     'quantity' => [
         'label' => 'lang:admin::lang.menus.label_option_qty',

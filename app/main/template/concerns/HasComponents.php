@@ -6,10 +6,6 @@ use System\Classes\ComponentManager;
 
 trait HasComponents
 {
-    public $settings = [
-        'components' => [],
-    ];
-
     /**
      * @var \System\Classes\BaseComponent[]
      */
@@ -22,18 +18,9 @@ trait HasComponents
      */
     public static function bootHasComponents()
     {
-        static::retrieving(function ($model) {
+        static::retrieved(function (self $model) {
+            $model->parseComponentSettings();
         });
-    }
-
-    /**
-     * Triggered after the object is loaded.
-     * @return void
-     */
-    public function afterRetrieve()
-    {
-        $this->parseComponentSettings();
-        $this->parseSettings();
     }
 
     public function parseComponentSettings()
@@ -53,11 +40,6 @@ trait HasComponents
         $this->settings['components'] = $components;
     }
 
-    public function parseSettings()
-    {
-        $this->fillViewBagArray();
-    }
-
     /**
      * Returns a component by its name.
      * This method is used only in the admin and for internal system needs when
@@ -69,11 +51,14 @@ trait HasComponents
      */
     public function getComponent($componentName)
     {
-        if (!isset($this->components[$componentName])) {
+        if (!($name = $this->hasComponent($componentName)))
             return null;
-        }
 
-        return $this->components[$componentName];
+        return ComponentManager::instance()->makeComponent(
+            $componentName,
+            null,
+            $this->settings['components'][$name]
+        );
     }
 
     /**
@@ -88,7 +73,7 @@ trait HasComponents
         $componentManager = ComponentManager::instance();
         $componentName = $componentManager->resolve($componentName);
 
-        foreach ($this->components as $name => $component) {
+        foreach ($this->settings['components'] as $name => $values) {
             $result = $name;
             if ($name == $componentName)
                 return $result;
@@ -111,8 +96,14 @@ trait HasComponents
     public function runComponents()
     {
         foreach ($this->components as $component) {
+            if ($event = $component->fireEvent('component.beforeRun', [], TRUE))
+                return $event;
+
             if ($result = $component->onRun())
                 return $result;
+
+            if ($event = $component->fireEvent('component.run', [], TRUE))
+                return $event;
         }
     }
 }

@@ -26,10 +26,8 @@ class Updates extends \Admin\Classes\AdminController
 
     public function index()
     {
-        if ($this->getUser()->hasPermission('Admin.Extensions.Manage')) {
-            Extensions_model::syncAll();
-            Themes_model::syncAll();
-        }
+        Extensions_model::syncAll();
+        Themes_model::syncAll();
 
         $pageTitle = lang('system::lang.updates.text_title');
         Template::setTitle($pageTitle);
@@ -72,6 +70,9 @@ class Updates extends \Admin\Classes\AdminController
 
     public function browse($context, $itemType = null)
     {
+        if (!in_array($itemType, ['themes', 'extensions']))
+            return $this->redirectBack();
+
         $updateManager = UpdateManager::instance();
 
         $pageTitle = lang('system::lang.updates.text_tab_title_'.$itemType);

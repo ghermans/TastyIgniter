@@ -19,17 +19,26 @@ mix.setPublicPath('./').options({
 // Copy fonts from node_modules
 //
 mix.copyDirectory(
-    'node_modules/@fortawesome/fontawesome-free-webfonts/webfonts',
+    'node_modules/@fortawesome/fontawesome-free/webfonts',
     'ui/fonts/FontAwesome'
 ).copy(
     'node_modules/animate.css/animate.min.css',
     'ui/scss/vendor/animate.scss'
+).copy(
+    'node_modules/bootstrap-colorpicker/dist/css/bootstrap-colorpicker.min.css',
+    '../../admin/formwidgets/colorpicker/assets/vendor/colorpicker/css/bootstrap-colorpicker.min.css'
+).copy(
+    'node_modules/bootstrap-colorpicker/dist/js/bootstrap-colorpicker.min.js',
+    '../../admin/formwidgets/colorpicker/assets/vendor/colorpicker/js/bootstrap-colorpicker.min.js'
+).copy(
+    'node_modules/metismenu/dist/metisMenu.min.js.map',
+    '../../admin/assets/js/metisMenu.min.js.map'
 );
 
 //
 //  Build UI SCSS
 //
-mix.sass('ui/scss/flame.scss', 'ui')
+// mix.sass('ui/scss/flame.scss', 'ui')
 
 //
 //  Combine UI JS

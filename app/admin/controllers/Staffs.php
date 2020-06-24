@@ -2,7 +2,6 @@
 
 use AdminAuth;
 use AdminMenu;
-use Request;
 
 class Staffs extends \Admin\Classes\AdminController
 {
@@ -51,26 +50,37 @@ class Staffs extends \Admin\Classes\AdminController
     {
         parent::__construct();
 
-        if ($this->action == 'edit' AND Request::method() != 'DELETE' AND AdminAuth::getStaffId() == current($this->params))
+        if ($this->action == 'account') {
             $this->requiredPermissions = null;
+        }
 
         AdminMenu::setContext('staffs', 'users');
+    }
+
+    public function account()
+    {
+        return $this->asExtension('FormController')->edit('account', $this->getUser()->getKey());
+    }
+
+    public function account_onSave()
+    {
+        $result = $this->asExtension('FormController')->edit_onSave('account', $this->currentUser->user_id);
+
+        $usernameChanged = $this->currentUser->username != post('Staff[user][username]');
+        $passwordChanged = strlen(post('Staff[user][password]'));
+        $languageChanged = $this->currentUser->language != post('Staff[language_id]');
+        if ($usernameChanged OR $passwordChanged OR $languageChanged) {
+            $this->currentUser->reload()->reloadRelations();
+            AdminAuth::login($this->currentUser, TRUE);
+        }
+
+        return $result;
     }
 
     public function listExtendQuery($query)
     {
         if (!AdminAuth::isSuperUser()) {
             $query->whereNotSuperUser();
-        }
-    }
-
-    public function formExtendFields($form, $fields)
-    {
-        if (!AdminAuth::isSuperUser()) {
-            $form->removeField('staff_group_id');
-            $form->removeField('staff_location_id');
-            $form->removeField('user[super_user]');
-            $form->removeField('staff_status');
         }
     }
 

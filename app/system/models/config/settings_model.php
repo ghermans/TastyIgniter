@@ -138,6 +138,52 @@ $config['form']['general'] = [
                     'options' => ['System\Models\Currencies_model', 'getDropdownOptions'],
                     'placeholder' => 'lang:admin::lang.text_please_select',
                 ],
+                'currency_converter[api]' => [
+                    'label' => 'lang:system::lang.settings.label_currency_converter',
+                    'tab' => 'lang:system::lang.settings.text_tab_site',
+                    'span' => 'right',
+                    'type' => 'select',
+                    'default' => 'openexchangerates',
+                    'options' => ['System\Models\Currencies_model', 'getConverterDropdownOptions'],
+                ],
+                'currency_converter[oer][apiKey]' => [
+                    'label' => 'lang:system::lang.settings.label_currency_converter_oer_api_key',
+                    'tab' => 'lang:system::lang.settings.text_tab_site',
+                    'type' => 'text',
+                    'span' => 'left',
+                    'comment' => 'lang:system::lang.settings.help_currency_converter_oer_api',
+                    'trigger' => [
+                        'action' => 'show',
+                        'field' => 'currency_converter[api]',
+                        'condition' => 'value[openexchangerates]',
+                    ],
+                ],
+                'currency_converter[fixerio][apiKey]' => [
+                    'label' => 'lang:system::lang.settings.label_currency_converter_fixer_api_key',
+                    'tab' => 'lang:system::lang.settings.text_tab_site',
+                    'type' => 'text',
+                    'span' => 'left',
+                    'comment' => 'lang:system::lang.settings.help_currency_converter_fixer_api',
+                    'trigger' => [
+                        'action' => 'show',
+                        'field' => 'currency_converter[api]',
+                        'condition' => 'value[fixerio]',
+                    ],
+                ],
+                'currency_converter[refreshInterval]' => [
+                    'label' => 'lang:system::lang.settings.label_currency_refresh_interval',
+                    'tab' => 'lang:system::lang.settings.text_tab_site',
+                    'span' => 'right',
+                    'type' => 'select',
+                    'default' => '24',
+                    'options' => [
+                        '1' => 'lang:system::lang.settings.text_1_hour',
+                        '3' => 'lang:system::lang.settings.text_3_hours',
+                        '6' => 'lang:system::lang.settings.text_6_hours',
+                        '12' => 'lang:system::lang.settings.text_12_hours',
+                        '24' => 'lang:system::lang.settings.text_24_hours',
+                    ],
+                ],
                 'date' => [
                     'label' => 'lang:system::lang.settings.text_tab_title_date_time',
                     'tab' => 'lang:system::lang.settings.text_tab_site',
@@ -174,7 +220,7 @@ $config['form']['general'] = [
             ['timezone', 'lang:system::lang.settings.label_timezone', 'required'],
             ['date_format', 'lang:system::lang.settings.label_date_format', 'required'],
             ['time_format', 'lang:system::lang.settings.label_time_format', 'required'],
-            ['default_currency_code', 'lang:system::lang.settings.label_site_currency', 'required|string'],
+            ['default_currency_code', 'lang:system::lang.settings.label_site_currency', 'required'],
             ['site_location_mode', 'lang:system::lang.settings.label_site_location_mode', 'required|string'],
             ['detect_language', 'lang:system::lang.settings.label_detect_language', 'required|integer'],
             ['default_language', 'lang:system::lang.settings.label_site_language', 'required'],
@@ -194,6 +240,13 @@ $config['form']['setup'] = [
     'form' => [
         'tabs' => [
             'fields' => [
+                'menus_page' => [
+                    'label' => 'lang:system::lang.settings.label_menus_page',
+                    'tab' => 'lang:system::lang.settings.text_tab_title_order',
+                    'type' => 'select',
+                    'default' => 'local/menus',
+                    'comment' => 'lang:system::lang.settings.help_menus_page',
+                ],
                 'guest_order' => [
                     'label' => 'lang:system::lang.settings.label_guest_order',
                     'tab' => 'lang:system::lang.settings.text_tab_title_order',
@@ -292,14 +345,6 @@ $config['form']['setup'] = [
                     'type' => 'text',
                     'comment' => 'lang:system::lang.settings.help_invoice_prefix',
                 ],
-                'auto_invoicing' => [
-                    'label' => 'lang:system::lang.settings.label_auto_invoicing',
-                    'tab' => 'lang:system::lang.settings.text_tab_title_invoice',
-                    'type' => 'switch',
-                    'on' => 'lang:system::lang.settings.text_auto',
-                    'off' => 'lang:system::lang.settings.text_manual',
-                    'comment' => 'lang:system::lang.settings.help_auto_invoicing',
-                ],
 
                 'allow_reviews' => [
                     'label' => 'lang:system::lang.settings.label_allow_reviews',
@@ -341,7 +386,7 @@ $config['form']['setup'] = [
                 'tax_percentage' => [
                     'label' => 'lang:system::lang.settings.label_tax_percentage',
                     'tab' => 'lang:system::lang.settings.text_tab_title_taxation',
-                    'type' => 'money',
+                    'type' => 'number',
                     'default' => 0,
                     'comment' => 'lang:system::lang.settings.help_tax_percentage',
                 ],
@@ -381,9 +426,9 @@ $config['form']['setup'] = [
             ['default_reservation_status', 'lang:system::lang.settings.label_default_reservation_status', 'required|integer'],
             ['confirmed_reservation_status', 'lang:system::lang.settings.label_confirmed_reservation_status', 'required|integer'],
             ['canceled_reservation_status', 'lang:system::lang.settings.label_canceled_reservation_status', 'required|integer'],
+            ['menus_page', 'lang:system::lang.settings.label_menus_page', 'required|string'],
             ['guest_order', 'lang:system::lang.settings.label_guest_order', 'required|integer'],
             ['location_order', 'lang:system::lang.settings.label_location_order', 'required|integer'],
-            ['auto_invoicing', 'lang:system::lang.settings.label_auto_invoicing', 'required|integer'],
             ['invoice_prefix', 'lang:system::lang.settings.label_invoice_prefix'],
         ],
     ],
@@ -434,18 +479,6 @@ $config['form']['media'] = [
                 'default' => 300,
                 'comment' => 'lang:system::lang.settings.help_media_max_size',
             ],
-            'image_manager[thumb_width]' => [
-                'label' => 'lang:system::lang.settings.label_media_thumb_width',
-                'type' => 'number',
-                'default' => 320,
-                'span' => 'left',
-            ],
-            'image_manager[thumb_height]' => [
-                'label' => 'lang:system::lang.settings.label_media_thumb_height',
-                'type' => 'number',
-                'default' => 220,
-                'span' => 'right',
-            ],
             'image_manager[uploads]' => [
                 'label' => 'lang:system::lang.settings.label_media_uploads',
                 'type' => 'switch',
@@ -491,15 +524,12 @@ $config['form']['media'] = [
         ],
         'rules' => [
             ['image_manager.max_size', 'lang:system::lang.settings.label_media_max_size', 'required|numeric'],
-            ['image_manager.thumb_height', 'lang:system::lang.settings.label_media_thumb_height', 'required|numeric'],
-            ['image_manager.thumb_width', 'lang:system::lang.settings.label_media_thumb_width', 'required|numeric'],
             ['image_manager.uploads', 'lang:system::lang.settings.label_media_uploads', 'integer'],
             ['image_manager.new_folder', 'lang:system::lang.settings.label_media_new_folder', 'integer'],
             ['image_manager.copy', 'lang:system::lang.settings.label_media_copy', 'integer'],
             ['image_manager.move', 'lang:system::lang.settings.label_media_move', 'integer'],
             ['image_manager.rename', 'lang:system::lang.settings.label_media_rename', 'integer'],
             ['image_manager.delete', 'lang:system::lang.settings.label_media_delete', 'integer'],
-            ['image_manager.transliteration', 'lang:system::lang.settings.label_media_transliteration', 'integer'],
         ],
     ],
 ];
@@ -618,29 +648,10 @@ $config['form']['advanced'] = [
                     'condition' => 'checked',
                 ],
             ],
-
-//            'caching'    => [
-//                'label' => 'lang:system::lang.settings.text_tab_title_caching',
-//                'type'  => 'section',
-//            ],
-//            'cache_mode' => [
-//                'label'   => 'lang:system::lang.settings.label_cache_mode',
-//                'type'    => 'switch',
-//                'span'    => 'left',
-//                'comment' => 'lang:system::lang.settings.help_cache_mode',
-//            ],
-//            'cache_time' => [
-//                'label'   => 'lang:system::lang.settings.label_cache_time',
-//                'type'    => 'number',
-//                'span'    => 'right',
-//                'comment' => 'lang:system::lang.settings.help_cache_time',
-//            ],
         ],
         'rules' => [
             ['maintenance_mode', 'lang:system::lang.settings.label_maintenance_mode', 'required|integer'],
             ['maintenance_message', 'lang:system::lang.settings.label_maintenance_message', 'required'],
-//            ['cache_mode', 'lang:system::lang.settings.label_cache_mode', 'required|integer'],
-//            ['cache_time', 'lang:system::lang.settings.label_cache_time', 'integer'],
         ],
     ],
 ];

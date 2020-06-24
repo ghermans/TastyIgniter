@@ -1,9 +1,9 @@
 <?php namespace Admin\Models;
 
+use Admin\Traits\Assignable;
 use Admin\Traits\Locationable;
 use Admin\Traits\LogsStatusHistory;
 use Carbon\Carbon;
-use Event;
 use Igniter\Flame\Database\Traits\Purgeable;
 use Main\Classes\MainController;
 use Model;
@@ -21,6 +21,7 @@ class Reservations_model extends Model
     use LogsStatusHistory;
     use SendsMailTemplate;
     use Locationable;
+    use Assignable;
 
     const CREATED_AT = 'date_added';
 
@@ -63,7 +64,6 @@ class Reservations_model extends Model
         'reserve_time' => 'time',
         'reserve_date' => 'date',
         'notify' => 'boolean',
-        'status_id' => 'integer',
         'duration' => 'integer',
         'processed' => 'boolean',
     ];
@@ -72,14 +72,9 @@ class Reservations_model extends Model
         'belongsTo' => [
             'related_table' => ['Admin\Models\Tables_model', 'foreignKey' => 'table_id'],
             'location' => 'Admin\Models\Locations_model',
-            'status' => ['Admin\Models\Statuses_model'],
-            'assignee' => ['Admin\Models\Staffs_model', 'foreignKey' => 'assignee_id'],
         ],
         'belongsToMany' => [
             'tables' => ['Admin\Models\Tables_model', 'table' => 'reservation_tables'],
-        ],
-        'morphMany' => [
-            'status_history' => ['Admin\Models\Status_history_model', 'name' => 'object'],
         ],
     ];
 
@@ -109,9 +104,6 @@ class Reservations_model extends Model
         if (array_key_exists('tables', $this->attributes)) {
             $this->addReservationTables((array)$this->attributes['tables']);
         }
-
-        if ($this->isDirty('assignee_id'))
-            Event::fire('admin.reservation.assigned', [$this]);
     }
 
     //
@@ -154,7 +146,7 @@ class Reservations_model extends Model
                 if (count($parts) < 2) {
                     array_push($parts, 'desc');
                 }
-                list($sortField, $sortDirection) = $parts;
+                [$sortField, $sortDirection] = $parts;
                 $query->orderBy($sortField, $sortDirection);
             }
         }
@@ -266,7 +258,7 @@ class Reservations_model extends Model
         $query = self::with('tables');
         $query->whereLocationId($location->getKey());
         $query->whereBetweenDate($dateTime->toDateTimeString());
-        $query->where('status_id', setting('confirmed_reservation_status'));
+        $query->whereNotIn('status_id', [0, setting('canceled_reservation_status')]);
         $result = $query->get();
 
         return $result->pluck('tables')->flatten()->keyBy('table_id');

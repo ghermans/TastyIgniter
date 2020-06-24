@@ -82,11 +82,6 @@ class Customers_model extends AuthUserModel
         return strtolower($value);
     }
 
-    public function getDateAddedAttribute($value)
-    {
-        return day_elapsed($value);
-    }
-
     //
     // Scopes
     //
@@ -221,12 +216,6 @@ class Customers_model extends AuthUserModel
 
                     if ($row['order_type'] == '1' AND !empty($row['address_id'])) {
                         Addresses_model::where('address_id', $row['address_id'])->update($update);
-                    }
-
-                    // @todo: move to paypal extension
-                    if (!empty($row['payment'])) {
-                        DB::table('pp_payments')->where('order_id', $row['order_id'])
-                          ->update(['customer_id' => $customer_id]);
                     }
                 }
             }

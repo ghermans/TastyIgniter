@@ -3,13 +3,13 @@
 namespace Admin\Classes;
 
 use Admin;
-use Admin\Models\Locations_model;
 use Admin\Traits\HasAuthentication;
 use Admin\Traits\ValidatesForm;
 use Admin\Traits\WidgetMaker;
 use Admin\Widgets\Menu;
 use Admin\Widgets\Toolbar;
 use AdminAuth;
+use AdminLocation;
 use AdminMenu;
 use Exception;
 use Igniter\Flame\Exception\AjaxException;
@@ -19,6 +19,7 @@ use Igniter\Flame\Exception\ValidationException;
 use Igniter\Flame\Flash\Facades\Flash;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\View;
 use Main\Widgets\MediaManager;
 use Redirect;
 use Request;
@@ -55,7 +56,7 @@ class AdminController extends BaseController
 
     /**
      * @var string Permission required to view this page.
-     * ex. Admin.Banners or Admin.Banners.Access
+     * ex. Admin.Banners.Access
      */
     protected $requiredPermissions;
 
@@ -105,26 +106,26 @@ class AdminController extends BaseController
         $className = basename($classPath);
 
         // Add paths from the extension / module context
-        $this->viewPath[] = '~/extensions/'.$relativePath.'/views';
-        $this->viewPath[] = '~/extensions/'.$relativePath.'/views/'.$className;
+        $this->viewPath[] = '$/'.$relativePath.'/views';
+        $this->viewPath[] = '$/'.$relativePath.'/views/'.$className;
         $this->viewPath[] = '~/app/'.$relativePath.'/views/'.$className;
         $this->viewPath[] = '~/app/'.$relativePath.'/views';
         $this->viewPath[] = '~/app/admin/views/'.$className;
         $this->viewPath[] = '~/app/admin/views';
 
         // Add layout paths from the extension / module context
-        $this->layoutPath[] = '~/extensions/'.$relativePath.'/views/_layouts';
+        $this->layoutPath[] = '$/'.$relativePath.'/views/_layouts';
         $this->layoutPath[] = '~/app/'.$relativePath.'/views/_layouts';
         $this->layoutPath[] = '~/app/admin/views/_layouts';
 
         // Add partial paths from the extension / module context
         // We will also make sure the admin module context is always present
-        $this->partialPath[] = '~/extensions/'.$relativePath.'/views/_partials';
+        $this->partialPath[] = '$/'.$relativePath.'/views/_partials';
         $this->partialPath[] = '~/app/'.$relativePath.'/views/_partials';
         $this->partialPath[] = '~/app/admin/views/_partials';
         $this->partialPath = array_merge($this->partialPath, $this->viewPath);
 
-        $this->configPath[] = '~/extensions/'.$relativePath.'/models/config';
+        $this->configPath[] = '$/'.$relativePath.'/models/config';
         $this->configPath[] = '~/app/'.$relativePath.'/models/config';
 
         $this->assetPath = '~/app/'.$relativePath.'/assets';
@@ -141,14 +142,17 @@ class AdminController extends BaseController
         // Ensures that a user is logged in, if required
         if ($requireAuthentication) {
             if (!$this->checkUser()) {
-                flash()->error(lang('admin::lang.alert_user_not_logged_in'))->important();
-
-                return Admin::redirectGuest('login');
+                return Request::ajax()
+                    ? Response::make(lang('admin::lang.alert_user_not_logged_in'), 403)
+                    : Admin::redirectGuest('login');
             }
 
             // Check that user has permission to view this page
-            if ($this->requiredPermissions AND !$this->getUser()->hasPermission($this->requiredPermissions, TRUE)) {
-                return $this->redirectBack(302, [], 'dashboard');
+            if ($this->requiredPermissions AND !$this->getUser()->hasAnyPermission($this->requiredPermissions)) {
+                return Response::make(Request::ajax()
+                    ? lang('admin::lang.alert_user_restricted')
+                    : View::make('admin::access_denied'), 403
+                );
             }
         }
 
@@ -261,12 +265,14 @@ class AdminController extends BaseController
                 $response[$partial] = $this->makePartial($partial);
             }
 
-            if ($result instanceof RedirectResponse AND Request::ajax()) {
-                $response['X_IGNITER_REDIRECT'] = $result->getTargetUrl();
-                $result = null;
-            }
-            elseif (Flash::messages()->isNotEmpty()) {
-                $response['#notification'] = $this->makePartial('flash');
+            if (Request::ajax()) {
+                if ($result instanceof RedirectResponse) {
+                    $response['X_IGNITER_REDIRECT'] = $result->getTargetUrl();
+                    $result = null;
+                }
+                elseif (Flash::messages()->isNotEmpty()) {
+                    $response['#notification'] = $this->makePartial('flash');
+                }
             }
 
             if (is_array($result)) {
@@ -279,7 +285,7 @@ class AdminController extends BaseController
                 return $result;
             }
 
-            return $result ?: $response;
+            return $response;
         }
         catch (ValidationException $ex) {
             $this->flashValidationErrors($ex->getErrors());
@@ -324,40 +330,14 @@ class AdminController extends BaseController
     // Locationable
     //
 
+    public function getUserLocation()
+    {
+        return AdminLocation::getLocation();
+    }
+
     public function getLocationId()
     {
-        if ($this->isSingleLocation())
-            return params('default_location_id');
-
-        return AdminAuth::getLocationId();
-    }
-
-    public function locationContext()
-    {
-        return $this->isSingleLocationContext()
-            ? Locations_model::LOCATION_CONTEXT_SINGLE
-            : Locations_model::LOCATION_CONTEXT_MULTIPLE;
-    }
-
-    public function isSingleLocation()
-    {
-        return setting()->get('site_location_mode') === Locations_model::LOCATION_CONTEXT_SINGLE;
-    }
-
-    public function isSingleLocationContext()
-    {
-        return AdminAuth::isSingleLocationContext();
-    }
-
-    public function applyLocationScope($query)
-    {
-        if (!in_array(\Admin\Traits\Locationable::class, class_uses($query->getModel())))
-            return;
-
-        if (!$this->isSingleLocationContext())
-            return;
-
-        $query->whereHasLocation($this->getLocationId());
+        return AdminLocation::getId();
     }
 
     //

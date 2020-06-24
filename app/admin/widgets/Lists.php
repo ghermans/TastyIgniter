@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use DB;
 use Exception;
 use Html;
+use Igniter\Flame\Exception\ApplicationException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
@@ -64,12 +65,6 @@ class Lists extends BaseWidget
      * @var mixed A default sort column to look for.
      */
     public $defaultSort;
-
-    /**
-     * @var string The location context of this widget, columns that do not belong
-     * to this context will not be shown.
-     */
-    protected $locationContext;
 
     protected $defaultAlias = 'list';
 
@@ -150,7 +145,6 @@ class Lists extends BaseWidget
             'showCheckboxes',
             'showSorting',
             'defaultSort',
-            'locationContext',
         ]);
 
         $this->pageLimit = $this->getSession('page_limit',
@@ -225,8 +219,8 @@ class Lists extends BaseWidget
     /**
      * Replaces the @ symbol with a table name in a model
      *
-     * @param  string $sql
-     * @param  string $table
+     * @param string $sql
+     * @param string $table
      *
      * @return string
      */
@@ -406,7 +400,7 @@ class Lists extends BaseWidget
     /**
      * Get a specified column object
      *
-     * @param  string $column
+     * @param string $column
      *
      * @return mixed
      */
@@ -502,10 +496,7 @@ class Lists extends BaseWidget
     {
         foreach ($columns as $columnName => $config) {
             // Check that the filter scope matches the active location context
-            if (array_key_exists('locationContext', $config)) {
-                $locationContext = (array)$config['locationContext'];
-                if (!in_array($this->locationContext, $locationContext)) continue;
-            }
+            if ($this->isLocationAware($config)) continue;
 
             $this->allColumns[$columnName] = $this->makeListColumn($columnName, $config);
         }
@@ -687,7 +678,7 @@ class Lists extends BaseWidget
                 $value = null;
             }
             elseif ($this->isColumnRelated($column, TRUE)) {
-                $value = implode(', ', $record->{$columnName}->lists($column->valueFrom));
+                $value = implode(', ', $record->{$columnName}->pluck($column->valueFrom)->all());
             }
             elseif ($this->isColumnRelated($column) OR $this->isColumnPivot($column)) {
                 $value = $record->{$columnName} ? $record->{$columnName}->{$column->valueFrom} : null;
@@ -744,7 +735,7 @@ class Lists extends BaseWidget
      */
     protected function evalMoneyTypeValue($record, $column, $value)
     {
-        return currency_format($value);
+        return number_format($value, 2);
     }
 
     /**
@@ -767,11 +758,12 @@ class Lists extends BaseWidget
             return null;
         }
 
-        $timestamp = $this->validateDateTimeValue($value, $column);
+        $dateTime = $this->validateDateTimeValue($value, $column);
 
-        $format = $column->format !== null ? $column->format : setting('date_format').' '.setting('time_format');
+        $format = $column->format ?? setting('date_format').' '.setting('time_format');
+        $format = parse_date_format($format);
 
-        return mdate($format, $timestamp);
+        return $dateTime->format($format);
     }
 
     /**
@@ -783,11 +775,12 @@ class Lists extends BaseWidget
             return null;
         }
 
-        $timestamp = $this->validateDateTimeValue($value, $column);
+        $dateTime = $this->validateDateTimeValue($value, $column);
 
-        $format = $column->format !== null ? $column->format : setting('time_format');
+        $format = $column->format ?? setting('time_format');
+        $format = parse_date_format($format);
 
-        return mdate($format, $timestamp);
+        return $dateTime->format($format);
     }
 
     /**
@@ -799,11 +792,14 @@ class Lists extends BaseWidget
             return null;
         }
 
-        $timestamp = $this->validateDateTimeValue($value, $column);
+        $dateTime = $this->validateDateTimeValue($value, $column);
 
-        $format = $column->format !== null ? $column->format : setting('date_format');
+        $format = $column->format ?? setting('date_format');
+        $format = parse_date_format($format);
 
-        return mdate($format, $timestamp);
+        return $format
+            ? $dateTime->format($format)
+            : $dateTime->toDayDateTimeString($format);
     }
 
     /**
@@ -815,11 +811,9 @@ class Lists extends BaseWidget
             return null;
         }
 
-        $timestamp = $this->validateDateTimeValue($value, $column);
+        $dateTime = $this->validateDateTimeValue($value, $column);
 
-        $value = mdate('%d-%m-%Y %H:%i:%s', $timestamp);
-
-        return time_elapsed($value);
+        return $dateTime->diffForHumans();
     }
 
     /**
@@ -831,11 +825,30 @@ class Lists extends BaseWidget
             return null;
         }
 
-        $timestamp = $this->validateDateTimeValue($value, $column);
+        $dateTime = $this->validateDateTimeValue($value, $column);
 
-        $value = mdate('%d-%m-%Y %H:%i:%s', $timestamp);
+        return day_elapsed($dateTime, FALSE);
+    }
 
-        return day_elapsed($value);
+    /**
+     * Process as time as current tense (Today at 0:00)
+     */
+    protected function evalTimetenseTypeValue($record, $column, $value)
+    {
+        if ($value === null) {
+            return null;
+        }
+        $dateTime = $this->validateDateTimeValue($value, $column);
+
+        return day_elapsed($dateTime);
+    }
+
+    /**
+     * Process as partial reference
+     */
+    protected function evalCurrencyTypeValue($record, $column, $value)
+    {
+        return currency_format($value);
     }
 
     /**
@@ -843,11 +856,13 @@ class Lists extends BaseWidget
      */
     protected function validateDateTimeValue($value, $column)
     {
-        if (!is_numeric($value))
-            return strtotime($value);
+        $value = make_carbon($value);
 
-        if ($value instanceof Carbon)
-            $value = $value->getTimestamp();
+        if (!$value instanceof Carbon) {
+            throw new ApplicationException(sprintf(
+                lang('admin::lang.list.invalid_column_datetime'), $column->columnName
+            ));
+        }
 
         return $value;
     }
@@ -1115,8 +1130,8 @@ class Lists extends BaseWidget
     /**
      * Check if column refers to a relation of the model
      *
-     * @param  ListColumn $column List column object
-     * @param  boolean $multi If set, returns true only if the relation is a "multiple relation type"
+     * @param ListColumn $column List column object
+     * @param boolean $multi If set, returns true only if the relation is a "multiple relation type"
      *
      * @return bool
      * @throws \Exception
@@ -1151,7 +1166,7 @@ class Lists extends BaseWidget
     /**
      * Checks if a column refers to a pivot model specifically.
      *
-     * @param  ListColumn $column List column object
+     * @param ListColumn $column List column object
      *
      * @return boolean
      */

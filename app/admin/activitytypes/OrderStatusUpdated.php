@@ -2,8 +2,8 @@
 
 namespace Admin\ActivityTypes;
 
+use Admin\Helpers\ActivityMessage;
 use Admin\Models\Orders_model;
-use Admin\Models\Status_history_model;
 use AdminAuth;
 use Igniter\Flame\ActivityLog\Contracts\ActivityInterface;
 use Igniter\Flame\ActivityLog\Models\Activity;
@@ -20,21 +20,28 @@ class OrderStatusUpdated implements ActivityInterface
      * @param \Admin\Models\Orders_model
      * @param \Igniter\Flame\Auth\Models\User $user
      */
-    public function __construct(Orders_model $order, User $user)
+    public function __construct(Orders_model $order, User $user = null)
     {
         $this->order = $order;
         $this->user = $user;
     }
 
-    public static function pushActivityLog(Status_history_model $model, Orders_model $object)
+    /**
+     * @param \Admin\Models\Orders_model|mixed $order
+     */
+    public static function log($order)
     {
-        if (!$object->isDirty('status_id') OR !$object->status_id)
-            return;
-
         $user = AdminAuth::user();
-        if ($user->getKey() != $model->assignee_id AND $sendTo = $model->assignee)
-            activity()->pushLog(new self($object, $user), [$sendTo->user]);
 
+        $recipients = [];
+        if ($order->assignee AND $order->assignee->getKey() !== $user->staff->getKey())
+            $recipients[] = $order->assignee->user;
+
+        $statusHistory = $order->getLatestStatusHistory();
+        if ($order->customer AND $statusHistory AND $statusHistory->notify)
+            $recipients[] = $order->customer;
+
+        activity()->logActivity(new self($order, $user), $recipients);
     }
 
     /**
@@ -92,6 +99,8 @@ class OrderStatusUpdated implements ActivityInterface
 
     public static function getMessage(Activity $activity)
     {
-        return lang('admin::lang.orders.activity_event_log');
+        return ActivityMessage::attachCauserPlaceholders(
+            'admin::lang.orders.activity_event_log', $activity
+        );
     }
 }

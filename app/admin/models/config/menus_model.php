@@ -11,7 +11,7 @@ $config['list']['filter'] = [
             'scope' => 'whereHasLocation',
             'modelClass' => 'Admin\Models\Locations_model',
             'nameFrom' => 'location_name',
-            'locationContext' => 'multiple',
+            'locationAware' => 'hide',
         ],
         'category' => [
             'label' => 'lang:admin::lang.menus.text_filter_category',
@@ -78,11 +78,11 @@ $config['list']['columns'] = [
         'relation' => 'locations',
         'select' => 'location_name',
         'invisible' => TRUE,
-        'locationContext' => 'multiple',
+        'locationAware' => 'hide',
     ],
     'menu_price' => [
         'label' => 'lang:admin::lang.menus.column_price',
-        'type' => 'money',
+        'type' => 'currency',
         'searchable' => TRUE,
     ],
     'stock_qty' => [
@@ -146,7 +146,7 @@ $config['form']['tabs'] = [
         ],
         'menu_price' => [
             'label' => 'lang:admin::lang.menus.label_price',
-            'type' => 'money',
+            'type' => 'currency',
             'span' => 'right',
         ],
         'categories' => [
@@ -175,7 +175,7 @@ $config['form']['tabs'] = [
             'span' => 'right',
             'valueFrom' => 'locations',
             'nameFrom' => 'location_name',
-            'locationContext' => 'multiple',
+            'locationAware' => 'hide',
         ],
         'minimum_qty' => [
             'label' => 'lang:admin::lang.menus.label_minimum_qty',
@@ -281,7 +281,7 @@ $config['form']['tabs'] = [
         'special[special_price]' => [
             'label' => 'lang:admin::lang.menus.label_special_price',
             'tab' => 'lang:admin::lang.menus.text_tab_special',
-            'type' => 'money',
+            'type' => 'currency',
             'span' => 'left',
             'cssClass' => 'flex-width',
         ],

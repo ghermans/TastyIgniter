@@ -2,7 +2,9 @@
 
 namespace System;
 
+use Admin\Classes\Location;
 use Admin\Classes\Navigation;
+use Admin\Classes\PermissionManager;
 use Admin\Classes\Template;
 use Admin\Classes\User;
 use Admin\Helpers\Admin as AdminHelper;
@@ -28,7 +30,6 @@ use System\Classes\ExtensionManager;
 use System\Classes\MailManager;
 use System\Helpers\ValidationHelper;
 use System\Libraries\Assets;
-use System\Models\Settings_model;
 
 class ServiceProvider extends AppServiceProvider
 {
@@ -61,6 +62,10 @@ class ServiceProvider extends AppServiceProvider
                 $this->app->register('\\'.$module.'\ServiceProvider');
             }
         });
+
+        if (App::runningInAdmin()) {
+            $this->registerPermissions();
+        }
     }
 
     /**
@@ -81,6 +86,8 @@ class ServiceProvider extends AppServiceProvider
         $this->extendValidator();
         $this->addTranslationDriver();
         $this->defineQueryMacro();
+
+        $this->app['router']->pushMiddlewareToGroup('web', 'currency');
     }
 
     /*
@@ -125,6 +132,10 @@ class ServiceProvider extends AppServiceProvider
 
         App::singleton('admin.template', function ($app) {
             return new Template;
+        });
+
+        App::singleton('admin.location', function ($app) {
+            return new Location;
         });
 
         App::singleton('country', function ($app) {
@@ -235,7 +246,7 @@ class ServiceProvider extends AppServiceProvider
         });
 
         Event::listen('mailer.beforeRegister', function () {
-            Settings_model::applyMailerConfigValues();
+            MailManager::instance()->applyMailerConfigValues();
         });
 
         Event::listen('mailer.beforeAddContent', function ($mailer, $message, $view, $data, $raw, $plain) {
@@ -277,6 +288,11 @@ class ServiceProvider extends AppServiceProvider
     {
         Event::listen('currency.beforeRegister', function () {
             app('config')->set('currency.default', setting('default_currency_code'));
+            app('config')->set('currency.converter', setting('currency_converter.api', 'openexchangerates'));
+            app('config')->set('currency.converters.openexchangerates.apiKey', setting('currency_converter.oer.apiKey'));
+            app('config')->set('currency.converters.fixerio.apiKey', setting('currency_converter.fixerio.apiKey'));
+            app('config')->set('currency.ratesCacheDuration', setting('currency_converter.refreshInterval'));
+            app('config')->set('currency.model', \System\Models\Currencies_model::class);
         });
 
         $this->app->resolving('translator.localization', function ($localization, $app) {
@@ -381,6 +397,41 @@ class ServiceProvider extends AppServiceProvider
             $schedule->call(function () {
                 Classes\UpdateManager::instance()->requestUpdateList(TRUE);
             })->cron('0 */12 * * *')->evenInMaintenanceMode();
+        });
+    }
+
+    protected function registerPermissions()
+    {
+        PermissionManager::instance()->registerCallback(function ($manager) {
+            $manager->registerPermissions('System', [
+                'Admin.Activities' => [
+                    'label' => 'system::lang.permissions.activities', 'group' => 'system::lang.permissions.name',
+                ],
+                'Admin.Extensions' => [
+                    'label' => 'system::lang.permissions.extensions', 'group' => 'system::lang.permissions.name',
+                ],
+                'Admin.MailTemplates' => [
+                    'label' => 'system::lang.permissions.mail_templates', 'group' => 'system::lang.permissions.name',
+                ],
+                'Site.Countries' => [
+                    'label' => 'system::lang.permissions.countries', 'group' => 'system::lang.permissions.name',
+                ],
+                'Site.Currencies' => [
+                    'label' => 'system::lang.permissions.currencies', 'group' => 'system::lang.permissions.name',
+                ],
+                'Site.Languages' => [
+                    'label' => 'system::lang.permissions.languages', 'group' => 'system::lang.permissions.name',
+                ],
+                'Site.Settings' => [
+                    'label' => 'system::lang.permissions.settings', 'group' => 'system::lang.permissions.name',
+                ],
+                'Site.Updates' => [
+                    'label' => 'system::lang.permissions.updates', 'group' => 'system::lang.permissions.name',
+                ],
+                'Admin.ErrorLogs' => [
+                    'label' => 'system::lang.permissions.error_logs', 'group' => 'system::lang.permissions.name',
+                ],
+            ]);
         });
     }
 }

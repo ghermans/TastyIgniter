@@ -1,6 +1,5 @@
 <?php
-$config['list']['filter']
-    = [
+$config['list']['filter'] = [
     'search' => [
         'prompt' => 'lang:admin::lang.customers.text_filter_search',
         'mode' => 'all' // or any, exact
@@ -59,13 +58,14 @@ $config['list']['columns'] = [
             'href' => 'customers/edit/{customer_id}',
         ],
     ],
-    'info' => [
+    'impersonate' => [
         'type' => 'button',
         'iconCssClass' => 'fa fa-user',
         'attributes' => [
-            'class' => 'btn btn-outline-info',
-            'target' => '_blank',
-            'href' => 'customers/impersonate/{customer_id}',
+            'class' => 'btn btn-outline-secondary',
+            'data-request' => 'onImpersonate',
+            'data-request-data' => 'recordId: \'{customer_id}\'',
+            'data-request-confirm' => 'admin::lang.customers.alert_impersonate_confirm',
         ],
     ],
     'full_name' => [
@@ -85,7 +85,7 @@ $config['list']['columns'] = [
     ],
     'date_added' => [
         'label' => 'lang:admin::lang.customers.column_date_added',
-        'type' => 'datesince',
+        'type' => 'timetense',
     ],
     'status' => [
         'label' => 'lang:admin::lang.label_status',

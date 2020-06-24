@@ -57,8 +57,7 @@ class MailTemplates extends \Admin\Classes\AdminController
 
     public function index()
     {
-        if ($this->getUser()->hasPermission('Admin.MailTemplates.Manage'))
-            Mail_templates_model::syncAll();
+        Mail_templates_model::syncAll();
 
         $this->asExtension('ListController')->index();
     }
@@ -86,7 +85,7 @@ class MailTemplates extends \Admin\Classes\AdminController
 
         $adminUser = $this->getUser()->staff;
 
-        Mail::send($model->code, [], function ($message) use ($adminUser) {
+        Mail::queue($model->code, [], function ($message) use ($adminUser) {
             $message->to($adminUser->staff_email, $adminUser->staff_name);
         });
 

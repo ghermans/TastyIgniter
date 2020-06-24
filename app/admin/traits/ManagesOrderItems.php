@@ -2,6 +2,7 @@
 
 namespace Admin\Traits;
 
+use Admin\Models\Coupons_history_model;
 use Admin\Models\Menu_item_option_values_model;
 use Admin\Models\Menus_model;
 use Carbon\Carbon;
@@ -14,7 +15,7 @@ trait ManagesOrderItems
 {
     public static function bootManagesOrderItems()
     {
-        Event::listen('admin.order.beforePaymentProcessed', function ($model) {
+        Event::listen('admin.order.beforePaymentProcessed', function (self $model) {
             $model->handleOnBeforePaymentProcessed();
         });
     }
@@ -29,9 +30,7 @@ trait ManagesOrderItems
     /**
      * Subtract cart item quantity from menu stock quantity
      *
-     * @param int $order_id
-     *
-     * @return bool
+     * @return void
      */
     public function subtractStock()
     {
@@ -40,42 +39,43 @@ trait ManagesOrderItems
             if (!$menu = Menus_model::find($orderMenu->menu_id))
                 return TRUE;
 
-            if (!$menu->subtract_stock)
-                return TRUE;
+            if ($menu->subtract_stock)
+                $menu->updateStock($orderMenu->quantity);
 
-            $orderMenuOptions->where('order_menu_id', $orderMenu->order_menu_id)->each(function ($orderMenuOption) {
-                if (!$menuOptionValue = Menu_item_option_values_model::find($orderMenuOption->menu_option_value_id))
-                    return TRUE;
+            $orderMenuOptions
+                ->where('order_menu_id', $orderMenu->order_menu_id)
+                ->each(function ($orderMenuOption) {
+                    if (!$menuOptionValue = Menu_item_option_values_model::find(
+                        $orderMenuOption->menu_option_value_id
+                    )) return TRUE;
 
-                $menuOptionValue->updateStock(1);
-            });
-
-            $menu->updateStock($orderMenu->quantity);
+                    $menuOptionValue->updateStock($orderMenuOption->quantity);
+                });
         });
     }
 
     /**
      * Redeem coupon by order_id
-     *
-     * @return bool TRUE on success, or FALSE on failure
      */
     public function redeemCoupon()
     {
-        $query = $this->coupon_history()->where('status', '!=', '1');
-        if (!$couponHistoryModel = $query->get()->last())
-            return FALSE;
+        $this
+            ->coupon_history()
+            ->where('status', '!=', '1')
+            ->get()
+            ->each(function (Coupons_history_model $model) {
+                $model->status = 1;
+                $model->date_used = Carbon::now();
+                $model->save();
 
-        $couponHistoryModel->touchStatus();
-
-        Event::fire('admin.order.couponRedeemed', [$couponHistoryModel]);
+                Event::fire('admin.order.couponRedeemed', [$model]);
+            });
     }
 
     /**
      * Return all order menu by order_id
      *
-     * @param int $order_id
-     *
-     * @return array
+     * @return \Illuminate\Support\Collection
      */
     public function getOrderMenus()
     {
@@ -85,9 +85,7 @@ trait ManagesOrderItems
     /**
      * Return all order menu options by order_id
      *
-     * @param int $order_id
-     *
-     * @return array
+     * @return \Illuminate\Support\Collection
      */
     public function getOrderMenuOptions()
     {
@@ -97,9 +95,7 @@ trait ManagesOrderItems
     /**
      * Return all order totals by order_id
      *
-     * @param int $order_id
-     *
-     * @return array
+     * @return \Illuminate\Support\Collection
      */
     public function getOrderTotals()
     {
@@ -168,6 +164,7 @@ trait ManagesOrderItems
                     'menu_option_value_id' => $value->id,
                     'order_option_name' => $value->name,
                     'order_option_price' => $value->price,
+                    'quantity' => $value->qty,
                 ]);
             }
         }
@@ -216,25 +213,10 @@ trait ManagesOrderItems
             ));
         }
 
-        $orderId = $this->getKey();
-        if (!is_numeric($orderId))
+        if (!$this->exists)
             return FALSE;
 
-        if (!$coupon = $couponCondition->getModel())
-            return FALSE;
-
-        $this->coupon_history()->delete();
-
-        $couponHistory = $this->coupon_history()->create([
-            'customer_id' => $customer ? $customer->getKey() : 0,
-            'coupon_id' => $coupon->coupon_id,
-            'code' => $coupon->code,
-            'amount' => $couponCondition->getValue(),
-            'min_total' => $coupon->min_total,
-            'date_used' => Carbon::now(),
-        ]);
-
-        return $couponHistory;
+        return Coupons_history_model::createHistory($couponCondition, $customer);
     }
 
     public function orderMenusQuery()

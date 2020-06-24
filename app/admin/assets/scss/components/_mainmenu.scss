@@ -15,6 +15,11 @@
         color: $body-color;
         padding: $mainmenu-padding-x $mainmenu-padding-y;
         position: relative;
+
+        .icon-border {
+          border-width: 3px;
+          border-style: solid;
+        }
       }
     }
   }
@@ -35,9 +40,7 @@
     }
 
     .nav-link > .badge {
-      padding: 0.2rem;
       font-size: 10px;
-      border-radius: 3px;
       position: absolute;
       top: 15px;
       right: 6px;
@@ -52,8 +55,8 @@
       border-bottom: 8px solid $gray-200;
       border-left: 8px solid transparent;
       border-right: 8px solid transparent;
-      bottom: -12px;
-      display: inline-block;
+      bottom: -2px;
+      display: none;
       left: 50%;
       margin-left: -8px;
       position: absolute;
@@ -87,11 +90,17 @@
     left: auto;
     right: 25px;
     padding: 0;
-    margin-top: 12px;
+    margin-top: -8px;
     line-height: $line-height-base;
     min-width: $mainmenu-dropdown-width;
     box-shadow: $box-shadow;
-    border: 0 none;
+    border: $border-width solid $border-color;
+
+    .dropdown-item {
+      .fa {
+        margin-right: 14px;
+      }
+    }
 
     .dropdown-header {
       font-size: $font-size-base;
@@ -181,20 +190,6 @@
       .menu-link .fa {
         font-size: 32px;
       }
-    }
-
-    .user-info {
-      background-color: $primary;
-      color: $white;
-      overflow: hidden;
-      padding: 20px 15px 14px;
-      border-radius: 2px 2px 0 0;
-      margin-bottom: 7px;
-    }
-
-    .user-info .username {
-      font-size: 18px;
-      font-weight: $font-weight-bold;
     }
   }
 

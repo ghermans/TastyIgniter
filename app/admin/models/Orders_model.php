@@ -1,5 +1,6 @@
 <?php namespace Admin\Models;
 
+use Admin\Traits\Assignable;
 use Admin\Traits\HasInvoice;
 use Admin\Traits\Locationable;
 use Admin\Traits\LogsStatusHistory;
@@ -23,6 +24,7 @@ class Orders_model extends Model
     use LogsStatusHistory;
     use SendsMailTemplate;
     use Locationable;
+    use Assignable;
 
     const CREATED_AT = 'date_added';
 
@@ -59,15 +61,11 @@ class Orders_model extends Model
         'customer_id' => 'integer',
         'location_id' => 'integer',
         'address_id' => 'integer',
-        'status_id' => 'integer',
-        'assignee_id' => 'integer',
-        'invoice_no' => 'integer',
         'total_items' => 'integer',
         'cart' => 'serialize',
         'order_date' => 'date',
         'order_time' => 'time',
         'order_total' => 'float',
-        'invoice_date' => 'dateTime',
         'notify' => 'boolean',
         'processed' => 'boolean',
     ];
@@ -77,8 +75,6 @@ class Orders_model extends Model
             'customer' => 'Admin\Models\Customers_model',
             'location' => 'Admin\Models\Locations_model',
             'address' => 'Admin\Models\Addresses_model',
-            'status' => 'Admin\Models\Statuses_model',
-            'assignee' => ['Admin\Models\Staffs_model', 'foreignKey' => 'assignee_id'],
             'payment_method' => ['Admin\Models\Payments_model', 'foreignKey' => 'payment', 'otherKey' => 'code'],
         ],
         'hasMany' => [
@@ -87,7 +83,6 @@ class Orders_model extends Model
         ],
         'morphMany' => [
             'review' => ['Admin\Models\Reviews_model'],
-            'status_history' => ['Admin\Models\Status_history_model', 'name' => 'object'],
         ],
     ];
 
@@ -114,14 +109,6 @@ class Orders_model extends Model
 
         $this->ip_address = Request::getClientIp();
         $this->user_agent = Request::userAgent();
-    }
-
-    protected function afterSave()
-    {
-        if (!$this->isDirty('assignee_id'))
-            return;
-
-        Event::fire('admin.order.assigned', [$this]);
     }
 
     //
@@ -164,7 +151,7 @@ class Orders_model extends Model
                 if (count($parts) < 2) {
                     array_push($parts, 'desc');
                 }
-                list($sortField, $sortDirection) = $parts;
+                [$sortField, $sortDirection] = $parts;
                 $query->orderBy($sortField, $sortDirection);
             }
         }
@@ -264,6 +251,8 @@ class Orders_model extends Model
 
     public function updateOrderStatus($id, $options = [])
     {
+        $id = $id ?? $this->status_id ?? setting('default_order_status');
+
         return $this->addStatusHistory(
             Statuses_model::find($id), $options
         );
@@ -336,11 +325,12 @@ class Orders_model extends Model
         $data['telephone'] = $model->telephone;
         $data['order_comment'] = $model->comment;
 
-        $data['order_type'] = ($model->order_type == '1') ? 'delivery' : 'collection';
+        $data['order_type'] = $model->order_type;
         $data['order_time'] = $model->order_time.' '.$model->order_date->format('d M');
         $data['order_date'] = $model->date_added->format('d M y');
 
-        $data['invoice_id'] = $model->invoice_id;
+        $data['invoice_id'] = $model->invoice_number;
+        $data['invoice_number'] = $model->invoice_number;
         $data['invoice_date'] = $model->invoice_date ? $model->invoice_date->format('d M y') : null;
 
         $data['order_payment'] = ($model->payment_method)

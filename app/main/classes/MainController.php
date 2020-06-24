@@ -143,7 +143,9 @@ class MainController extends BaseController
         if (!$this->theme)
             throw new ApplicationException(Lang::get('main::lang.not_found.active_theme'));
 
-        $this->assetPath = $this->theme->getPath().'/assets';
+        $this->assetPath[] = $this->theme->getPath().'/assets';
+        if ($this->theme->hasParent())
+            $this->assetPath[] = $this->theme->getParentPath().'/assets';
 
         parent::__construct();
 
@@ -555,7 +557,7 @@ class MainController extends BaseController
                 ? explode(' ', $component)
                 : [$component, $component];
 
-            $this->addComponent($name, $alias, $properties);
+            $this->addComponent($name, $alias, $properties, TRUE);
         }
 
         foreach ($this->page->settings['components'] as $component => $properties) {
@@ -635,7 +637,6 @@ class MainController extends BaseController
 
     /**
      * Renders a requested content file.
-     * @internal
      *
      * @param string $name The content view to load.
      * @param array $params Parameter variables to pass to the view.
@@ -762,11 +763,11 @@ class MainController extends BaseController
      */
     public function findComponentByAlias($alias)
     {
-        if ($this->layout->hasComponent($alias))
-            return $this->layout->getComponent($alias);
+        if (isset($this->page->components[$alias]))
+            return $this->page->components[$alias];
 
-        if ($this->page->hasComponent($alias))
-            return $this->page->getComponent($alias);
+        if (isset($this->layout->components[$alias]))
+            return $this->layout->components[$alias];
 
         return null;
     }
@@ -844,8 +845,7 @@ class MainController extends BaseController
 
         // Check if the theme has an override
         if (strpos($partialName, '/') === FALSE) {
-            $overrideName = $componentObj->alias.'/'.$partialName;
-            $partial = Partial::loadCached($this->theme, $overrideName);
+            $partial = ComponentPartial::loadOverrideCached($this->theme, $componentObj, $partialName);
         }
 
         // Check the component partial
@@ -893,6 +893,9 @@ class MainController extends BaseController
 
         if (!is_array($params))
             $params = [];
+
+        if ($path == setting('menus_page'))
+            $params = $this->bindLocationRouteParameter($params);
 
         return $this->url($path, $params);
     }
@@ -949,5 +952,21 @@ class MainController extends BaseController
             throw new ApplicationException($message);
 
         flash()->danger($message);
+    }
+
+    protected function bindLocationRouteParameter($params)
+    {
+        if (!App::bound('location'))
+            return $params;
+
+        if (isset($params['location']))
+            return $params;
+
+        if (!$location = App::make('location')->current())
+            $location = App::make('location')->getDefault();
+
+        $params['location'] = $location ? $location->permalink_slug : null;
+
+        return $params;
     }
 }

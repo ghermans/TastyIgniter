@@ -5,13 +5,23 @@ $config['list']['filter'] = [
         'mode' => 'all',
     ],
     'scopes' => [
+        'assignee' => [
+            'label' => 'lang:admin::lang.reservations.text_filter_assignee',
+            'type' => 'select',
+            'scope' => 'filterAssignedTo',
+            'options' => [
+                1 => 'lang:admin::lang.statuses.text_unassigned',
+                2 => 'lang:admin::lang.statuses.text_assigned_to_self',
+                3 => 'lang:admin::lang.statuses.text_assigned_to_others',
+            ],
+        ],
         'location' => [
             'label' => 'lang:admin::lang.text_filter_location',
             'type' => 'select',
             'conditions' => 'location_id = :filtered',
             'modelClass' => 'Admin\Models\Locations_model',
             'nameFrom' => 'location_name',
-            'locationContext' => 'multiple',
+            'locationAware' => 'hide',
         ],
         'status' => [
             'label' => 'lang:admin::lang.text_filter_status',
@@ -40,6 +50,7 @@ $config['list']['toolbar'] = [
         'delete' => [
             'label' => 'lang:admin::lang.button_delete',
             'class' => 'btn btn-danger',
+            'context' => 'index',
             'data-attach-loading' => '',
             'data-request' => 'onDelete',
             'data-request-form' => '#list-form',
@@ -50,6 +61,12 @@ $config['list']['toolbar'] = [
             'label' => 'lang:admin::lang.reservations.text_switch_to_calendar',
             'class' => 'btn btn-default',
             'href' => 'reservations/calendar',
+            'context' => 'index',
+        ],
+        'assigned' => [
+            'label' => 'lang:admin::lang.text_switch_to_assigned',
+            'class' => 'btn btn-default',
+            'href' => 'reservations/assigned',
             'context' => 'index',
         ],
         'filter' => [
@@ -78,7 +95,7 @@ $config['list']['columns'] = [
         'relation' => 'location',
         'select' => 'location_name',
         'searchable' => TRUE,
-        'locationContext' => 'multiple',
+        'locationAware' => 'hide',
     ],
     'full_name' => [
         'label' => 'lang:admin::lang.label_name',
@@ -105,7 +122,7 @@ $config['list']['columns'] = [
         'path' => 'reservations/status_column',
         'searchable' => TRUE,
     ],
-    'assignee_id' => [
+    'assignee_name' => [
         'label' => 'lang:admin::lang.reservations.column_staff',
         'type' => 'text',
         'relation' => 'assignee',
@@ -165,68 +182,18 @@ $config['form']['toolbar'] = [
 ];
 
 $config['form']['fields'] = [
-    'reservation_id' => [
-        'label' => 'lang:admin::lang.reservations.label_reservation_id',
-        'type' => 'text',
+    '_info' => [
+        'type' => 'partial',
+        'disabled' => TRUE,
+        'path' => 'reservations/form/info',
         'span' => 'left',
-        'disabled' => TRUE,
-        'context' => ['edit', 'preview'],
-    ],
-    'table_name' => [
-        'label' => 'lang:admin::lang.reservations.label_table_name',
-        'type' => 'text',
-        'span' => 'right',
-        'disabled' => TRUE,
         'context' => ['edit', 'preview'],
     ],
     'status_id' => [
-        'label' => 'lang:admin::lang.label_status',
         'type' => 'statuseditor',
-        'span' => 'left',
-        'relationFrom' => 'status',
-        'options' => ['Admin\Models\Statuses_model', 'listStatuses'],
-        'list' => 'status_history_model',
-        'form' => [
-            'fields' => [
-                'status_id' => [
-                    'label' => 'lang:admin::lang.label_status',
-                    'type' => 'select',
-                    'options' => ['Admin\Models\Statuses_model', 'getDropdownOptionsForReservation'],
-                    'placeholder' => 'lang:admin::lang.text_please_select',
-                    'attributes' => [
-                        'data-status-value' => '',
-                    ],
-                ],
-                'comment' => [
-                    'label' => 'lang:admin::lang.reservations.label_comment',
-                    'type' => 'textarea',
-                    'attributes' => [
-                        'data-status-comment' => '',
-                    ],
-                ],
-                'notify' => [
-                    'label' => 'lang:admin::lang.reservations.label_notify',
-                    'type' => 'radio',
-                    'default' => 1,
-                    'options' => [
-                        'lang:admin::lang.text_no',
-                        'lang:admin::lang.text_yes',
-                    ],
-                    'comment' => 'lang:admin::lang.reservations.help_notify_customer',
-                    'attributes' => [
-                        'data-status-notify' => '',
-                    ],
-                ],
-            ],
-        ],
-    ],
-    'assignee_id' => [
-        'label' => 'lang:admin::lang.reservations.label_assign_staff',
-        'type' => 'relation',
-        'relationFrom' => 'assignee',
-        'nameFrom' => 'staff_name',
         'span' => 'right',
-        'placeholder' => 'lang:admin::lang.text_please_select',
+        'context' => ['edit', 'preview'],
+        'form' => 'reservation_status_model',
     ],
 ];
 
@@ -274,7 +241,7 @@ $config['form']['tabs'] = [
             'nameFrom' => 'location_name',
             'span' => 'right',
             'placeholder' => 'lang:admin::lang.text_please_select',
-            'locationContext' => 'multiple',
+            'locationAware' => 'hide',
         ],
         'guest_num' => [
             'label' => 'lang:admin::lang.reservations.label_guest',
@@ -339,15 +306,10 @@ $config['form']['tabs'] = [
         'status_history' => [
             'tab' => 'lang:admin::lang.reservations.text_status_history',
             'type' => 'datatable',
+            'context' => ['edit', 'preview'],
             'columns' => [
-                'date_added' => [
+                'date_added_since' => [
                     'title' => 'lang:admin::lang.reservations.column_date_time',
-                ],
-                'staff_name' => [
-                    'title' => 'lang:admin::lang.reservations.column_staff',
-                ],
-                'assignee_name' => [
-                    'title' => 'lang:admin::lang.reservations.column_assignee',
                 ],
                 'status_name' => [
                     'title' => 'lang:admin::lang.label_status',
@@ -357,6 +319,9 @@ $config['form']['tabs'] = [
                 ],
                 'notified' => [
                     'title' => 'lang:admin::lang.reservations.column_notify',
+                ],
+                'staff_name' => [
+                    'title' => 'lang:admin::lang.reservations.column_staff',
                 ],
             ],
         ],
